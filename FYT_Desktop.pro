@@ -13,8 +13,11 @@ TEMPLATE = app
 
 
 SOURCES += main.cpp\
-        dialog.cpp
+        dialog.cpp \
+    fytimgprocessinglib.cpp
 
-HEADERS  += dialog.h
+HEADERS  += dialog.h \
+    fytimgprocessinglib.h \
+    fytimgprocessinglib.h
 
 FORMS    += dialog.ui
