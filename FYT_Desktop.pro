@@ -17,7 +17,6 @@ SOURCES += main.cpp\
     fytimgprocessinglib.cpp
 
 HEADERS  += dialog.h \
-    fytimgprocessinglib.h \
     fytimgprocessinglib.h
 
 FORMS    += dialog.ui

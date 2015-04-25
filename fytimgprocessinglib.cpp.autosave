@@ -297,7 +297,8 @@ float FYTImgProcessingLib::blockContrastMeasure(
         histogram_deviation += ((scale - histogram_component_mean) * (scale- histogram_component_mean) * histogram[scale]);
     }
     histogram_deviation /= histogram_component_sum;
-
+    //FIXME: return the stand deviation
+    //use LookUpTable for this
     if(0 <= histogram_deviation)
         return sqrt(histogram_deviation);
     else

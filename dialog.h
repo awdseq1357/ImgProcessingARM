@@ -1,18 +1,17 @@
 #ifndef DIALOG_H
 #define DIALOG_H
 
-#define IMG_WIDTH 640
-#define IMG_HEIGHT 480
+//#define IMG_WIDTH 640
+//#define IMG_HEIGHT 480
 
 #include <QDialog>
 #include <QImage>
 #include <QPixmap>
-//#include <QString>
+#include <QString>
 #include <QPainter>
 #include <QImageReader>
 #include "fytimgprocessinglib.h"
-#include "wtret.h"
-
+//#include "V4L2.h"
 
 namespace Ui {
 class Dialog;
@@ -34,6 +33,8 @@ private slots:
     void on_pushButton_exposure_compensation_clicked();
 
     void on_pushButton_read_image_clicked();
+
+    void on_pushButton_test_image_clicked();
 
 private:
     Ui::Dialog *ui;

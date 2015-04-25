@@ -30,7 +30,7 @@
    <property name="geometry">
     <rect>
      <x>710</x>
-     <y>160</y>
+     <y>140</y>
      <width>150</width>
      <height>75</height>
     </rect>
@@ -81,6 +81,32 @@
    </property>
    <property name="text">
     <string>White Balancing</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="pushButton_read_camera">
+   <property name="geometry">
+    <rect>
+     <x>710</x>
+     <y>240</y>
+     <width>150</width>
+     <height>75</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Camera</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="pushButton_test_image">
+   <property name="geometry">
+    <rect>
+     <x>520</x>
+     <y>390</y>
+     <width>301</width>
+     <height>111</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>TEST</string>
    </property>
   </widget>
  </widget>
