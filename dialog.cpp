@@ -52,6 +52,8 @@ void Dialog::on_pushButton_read_image_clicked()
     //processor.grayscaleToRgb(m_img_8u1_mag,m_image.bits(),IMAGE_WIDTH, IMAGE_HEIGHT);
     //image_ = processor.enhancedWhitePitchWhiteBalance(image_);
     //image_ = processor.skinDetection(image_);
+    //processor.testImageContrastFocus(QDir::current());
+
     pixmap_ = QPixmap::fromImage(image_);
 
     update();

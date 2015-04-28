@@ -10,8 +10,8 @@ namespace
 
 FYTImgProcessingLib::FYTImgProcessingLib()
 {
-    //sobel开平方查找表赋值，输入值小于370*370
-    table_sobel_sqrt = new unsigned char[136900];
+    //sobel square table
+   // table_sobel_sqrt = new unsigned char[136900];
     int i,j;
     for(i=0; i<255; i++)
     {
@@ -22,11 +22,19 @@ FYTImgProcessingLib::FYTImgProcessingLib()
     }
     for(j=255*255; j<136900; j++)
         table_sobel_sqrt[j] = 255;
+
+    //initialize the
+   // camera_response_curve_LUT = new int[256];
+    for(int i = 0; i<255;i++)
+    {
+        camera_response_curve_LUT[i] = 2*i;
+    }
 }
 
 FYTImgProcessingLib::~FYTImgProcessingLib()
 {
-    delete table_sobel_sqrt;
+    //delete table_sobel_sqrt;
+   // delete camera_response_curve_LUT;
 }
 
 QImage FYTImgProcessingLib::grayWorldWhiteBalance(QImage image)
@@ -297,7 +305,8 @@ float FYTImgProcessingLib::blockContrastMeasure(
         histogram_deviation += ((scale - histogram_component_mean) * (scale- histogram_component_mean) * histogram[scale]);
     }
     histogram_deviation /= histogram_component_sum;
-
+    //FIXME: return the stand deviation
+    //use LookUpTable for this
     if(0 <= histogram_deviation)
         return sqrt(histogram_deviation);
     else
@@ -527,6 +536,27 @@ QImage *FYTImgProcessingLib::separateInBlocks(QImage image, int dividend)
         }
     }
     return separated_blocks;
+}
+
+int FYTImgProcessingLib::cameraResponse(int light_intensity)
+{
+    int initial = 0, final = 255, mid = (initial+final)/2, location = -1;
+    while(initial+1!=final)
+    {
+        qDebug() << "initial" << initial <<"mid"<< mid << "final"<<final;
+        if(camera_response_curve_LUT[mid]==light_intensity)
+        {
+            location=mid;
+            break;
+        }
+        if(light_intensity<camera_response_curve_LUT[mid])
+            final=mid;
+        if(light_intensity>camera_response_curve_LUT[mid])
+            initial=mid;
+        mid = (initial+final)/2;
+        location = mid;
+    }
+    return location;
 }
 
 void FYTImgProcessingLib::testImageContrastFocus(QDir current_dir)

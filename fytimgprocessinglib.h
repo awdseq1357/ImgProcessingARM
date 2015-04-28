@@ -74,6 +74,7 @@ public:
     //number_of_blocks == divident * dividend
     QImage *separateInBlocks(QImage image, int dividend);
 
+    int cameraResponse(int light_intensity);
     void testImageContrastFocus(QDir current_dir);
     void testHistogram(QString file_name);
 private:
@@ -81,7 +82,8 @@ private:
     QImage input_image;
     QImage visibility_image;
 
-    unsigned char *table_sobel_sqrt;
+    int camera_response_curve_LUT[255];
+    unsigned char table_sobel_sqrt[136900];
 
 
 };
