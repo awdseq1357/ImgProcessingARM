@@ -39,8 +39,7 @@ private slots:
 private:
     Ui::Dialog *ui;
 
-    //wtret aaa;
-    FYTImgProcessingLib processor;
+    FYTImgProcessingLib* processor;
     QImage image_;
     QPixmap pixmap_;
 };

@@ -3,6 +3,7 @@
 
 #include <QImage>
 #include <QRgb>
+#include <QColor>
 #include <vector>
 #include <QDebug>
 #include <QDir>
@@ -27,6 +28,8 @@ class FYTImgProcessingLib
 public:
     FYTImgProcessingLib();
     ~FYTImgProcessingLib();
+
+    void readImage(QString file_name);
 
     QImage grayWorldWhiteBalance(QImage image);
     QImage whitePitchWhiteBalance(QImage image);
@@ -71,18 +74,27 @@ public:
     unsigned int *rgbToGrayscale(QImage image);
     unsigned int *grayscaleToHistogram(unsigned int *grayscale_img);
 
+    unsigned char *grayscaleToHistogram(unsigned char *yuyv_img);
     //number_of_blocks == divident * dividend
-    QImage *separateInBlocks(QImage image, int dividend);
+    bool  *relevantRegionSelection(int dividend, bool preprocessing=true);
 
+    QImage luminanceAdjust(bool *relevant_blocks, int dividend);
+    unsigned char*FYTImgProcessingLib::visibilityImageConstruction(const unsigned char *yuyv_Image, int image_width, int image_height);
     int cameraResponse(int light_intensity);
+    int inverseCameraResponse(int pixel);
+
     void testImageContrastFocus(QDir current_dir);
     void testHistogram(QString file_name);
+
+QImage *separated_blocks;
 private:
     int image;
     QImage input_image;
+
     QImage visibility_image;
 
-    int camera_response_curve_LUT[255];
+    int *inverse_camera_response_curve_LUT;
+    int *camera_response_curve_LUT;
     unsigned char table_sobel_sqrt[136900];
 
 

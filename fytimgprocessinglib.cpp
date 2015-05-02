@@ -4,7 +4,6 @@ namespace
 {
     unsigned int *rgbToGrayscale(QImage image);
     unsigned int *grayscaleToHistogram(unsigned int *grayscale_img);
-    QImage *separateInBlocks(QImage image, int number_of_blocks);
 }
 
 
@@ -24,17 +23,25 @@ FYTImgProcessingLib::FYTImgProcessingLib()
         table_sobel_sqrt[j] = 255;
 
     //initialize the
-   // camera_response_curve_LUT = new int[256];
+    camera_response_curve_LUT = new int[256];
     for(int i = 0; i<255;i++)
     {
-        camera_response_curve_LUT[i] = 2*i;
+        camera_response_curve_LUT[i] = 255*pow((float)i/255,0.45);
     }
 }
 
 FYTImgProcessingLib::~FYTImgProcessingLib()
 {
     //delete table_sobel_sqrt;
-   // delete camera_response_curve_LUT;
+    delete []inverse_camera_response_curve_LUT;
+    delete []camera_response_curve_LUT;
+}
+
+void FYTImgProcessingLib::readImage(QString file_name)
+{
+    QImageReader reader;
+    reader.setFileName(file_name);
+    input_image = reader.read();
 }
 
 QImage FYTImgProcessingLib::grayWorldWhiteBalance(QImage image)
@@ -200,18 +207,13 @@ QImage FYTImgProcessingLib::enhancedWhitePitchWhiteBalance(QImage image)
 
 int FYTImgProcessingLib::exposureCompensation(QImage test_image)
 {
-    //linear combination of contrast and focus measure;
-    //S(selection) = F + D;
-    int Laplacian_filter[] = {3,3,-1,-1,-1,-1,8,-1,-1,-1,-1};
-
-    int selection = blockContrastMeasure(test_image) + blockFocusMeasure(test_image,Laplacian_filter);
-
-    return selection;
+    return 0;
 }
 
 QImage FYTImgProcessingLib::skinDetection(QImage image)
 {
     //based on the color segmentation
+    float skin_percentage = 0;
     for(int pixel_row = 0; pixel_row < image.height();pixel_row++)
     {
         QRgb *row_data = (QRgb*)image.scanLine(pixel_row);
@@ -231,16 +233,20 @@ QImage FYTImgProcessingLib::skinDetection(QImage image)
                 if(pixel_chrominance[2] - pixel_chrominance[0] > 15)
                 {
                     if(abs(qRed(*pixel_data) - qGreen(*pixel_data)))
+                    {
+                        skin_percentage++;
                         is_skin = true;
+                    }
                 }
             }
             if(!is_skin) *pixel_data = qRgb(0,0,0);
             else *pixel_data = qRgb(255,255,255);
         }
     }
+    skin_percentage = skin_percentage/(input_image.height()*input_image.width());
     return image;
 }
-
+//TODO
 QImage FYTImgProcessingLib::faceRecognition(QImage image)
 {
     int num_face_candidate = 0;
@@ -519,44 +525,47 @@ void FYTImgProcessingLib::grayscaleToRgb(const unsigned char *img_8u1_gray,
     }
 }
 
-QImage *FYTImgProcessingLib::separateInBlocks(QImage image, int dividend)
-{
-    int horizontal_step = image.width() / dividend;
-    int vertical_step = image.height() / dividend;
-    //TODO:dynamic array, clean
-    QImage *separated_blocks = new QImage[dividend * dividend];
-    for(int row_block = 0; row_block < dividend; row_block++)
-    {
-        for(int col_block = 0; col_block < dividend; col_block++)
-        {
-            separated_blocks[row_block * dividend + col_block] = image.copy(row_block * horizontal_step
-                                                                            ,col_block* vertical_step
-                                                                            ,horizontal_step
-                                                                            ,vertical_step);
-        }
-    }
-    return separated_blocks;
-}
 
 int FYTImgProcessingLib::cameraResponse(int light_intensity)
 {
     int initial = 0, final = 255, mid = (initial+final)/2, location = -1;
     while(initial+1!=final)
     {
-        qDebug() << "initial" << initial <<"mid"<< mid << "final"<<final;
-        if(camera_response_curve_LUT[mid]==light_intensity)
+        //qDebug() << "initial" << initial <<"mid"<< mid << "final"<<final;
+        if(inverse_camera_response_curve_LUT[mid]==light_intensity)
         {
             location=mid;
             break;
         }
-        if(light_intensity<camera_response_curve_LUT[mid])
+        if(light_intensity<inverse_camera_response_curve_LUT[mid])
             final=mid;
-        if(light_intensity>camera_response_curve_LUT[mid])
+        if(light_intensity>inverse_camera_response_curve_LUT[mid])
             initial=mid;
         mid = (initial+final)/2;
         location = mid;
     }
     return location;
+}
+
+int FYTImgProcessingLib::inverseCameraResponse(int pixel)
+{
+    int initial = 0, final = 255, mid = (initial+final)/2, light_intensity = -1;
+    while(initial+1!=final)
+    {
+        //qDebug() << "initial" << initial <<"mid"<< mid << "final"<<final;
+        if(camera_response_curve_LUT[mid]==pixel)
+        {
+            light_intensity=mid;
+            break;
+        }
+        if(pixel<camera_response_curve_LUT[mid])
+            final=mid;
+        if(pixel>camera_response_curve_LUT[mid])
+            initial=mid;
+        mid = (initial+final)/2;
+        light_intensity = mid;
+    }
+    return light_intensity;
 }
 
 void FYTImgProcessingLib::testImageContrastFocus(QDir current_dir)
@@ -574,15 +583,6 @@ void FYTImgProcessingLib::testImageContrastFocus(QDir current_dir)
         reader.setFileName(*image_name_iterator);
         qDebug() << *image_name_iterator;
         test_image = reader.read();
-        if(*image_name_iterator == "solid_color_white.jpg")
-        {
-            float contrast = blockContrastMeasure(test_image);
-            for(int pixel = 0; pixel < test_image.width() * test_image.height();pixel++)\
-            {
-              //  qDebug() << "pixel " + QString::number(pixel) << img[pixel];
-            }
-
-        }
 //        testHistogram(*image_name_iterator);
 
         qDebug() << "contrast "<< blockContrastMeasure(test_image);
@@ -601,6 +601,8 @@ void FYTImgProcessingLib::testHistogram(QString file_name)
         qDebug() << file_name + " histogram"<< "scale " + QString::number(i) <<histogram[i];
 }
 
+
+
 unsigned int *FYTImgProcessingLib::rgbToGrayscale(QImage image)
 {
     int img_width = image.width(), img_height = image.height();
@@ -618,7 +620,9 @@ unsigned int *FYTImgProcessingLib::rgbToGrayscale(QImage image)
         {
             QRgb pixel_data = rowData[pixel_col];
             //TODO: call a function, could be slow
-            grayscale_img[img_width * pixel_row + pixel_col + 2] = qGray(pixel_data);
+            grayscale_img[img_width * pixel_row + pixel_col + 2] = 0.299*qRed(pixel_data)
+                                                                 + 0.587*qGreen(pixel_data)
+                                                                 + 0.114*qBlue(pixel_data);
         }
     }
     return grayscale_img;
@@ -635,5 +639,143 @@ unsigned int *FYTImgProcessingLib::grayscaleToHistogram(unsigned int *grayscale_
         histogram[grayscale_img[pixel+2]]++;
     }
     return histogram;
+}
+
+    //TODO:
+bool *FYTImgProcessingLib::relevantRegionSelection(int dividend, bool preprocessing)
+{
+
+    int horizontal_step = input_image.width() / dividend;
+    int vertical_step = input_image.height() / dividend;
+    int num_of_blocks = dividend * dividend;
+    separated_blocks = new QImage[num_of_blocks];
+    //TODO:dynamic array, clean
+    bool *relevant_blocks = new bool[num_of_blocks]();
+    int Laplacian_filter[] = {3,3,-1,-1,-1,-1,8,-1,-1,-1,-1};
+    int kContrastFocusThreshold = 70;
+    for(int row_block = 0; row_block < dividend; row_block++)
+    {
+        for(int col_block = 0; col_block < dividend; col_block++)
+        {
+            QImage test_block = input_image.copy(row_block * horizontal_step
+                                           ,col_block* vertical_step
+                                           ,horizontal_step
+                                           ,vertical_step);
+            int current_block = row_block*dividend + col_block;
+            separated_blocks[current_block] = test_block;
+            if(preprocessing)
+                relevant_blocks[current_block] = true;
+            else if(blockContrastMeasure(test_block) + blockFocusMeasure(test_block,Laplacian_filter) > kContrastFocusThreshold)
+            {
+                relevant_blocks[current_block] = true;
+            }
+        }
+    }
+        return relevant_blocks;
+}
+
+
+
+QImage FYTImgProcessingLib::luminanceAdjust(bool *relevant_blocks, int dividend)
+{
+    int img_height = input_image.height();
+    int img_width = input_image.width();
+    int img_size = img_height*img_width;
+    float luminance_mean = 0;
+    QImage adjusted_image = input_image;
+    for(int pixel_row = 0; pixel_row < img_height; pixel_row++)
+    {
+        QRgb *rowData = (QRgb*)adjusted_image.scanLine(pixel_row);
+        for(int pixel_col = 0; pixel_col < img_width; pixel_col++)
+        {
+            int current_pixel = pixel_row * img_width + img_height;
+            QRgb *pixel_data = &rowData[pixel_col];
+            int luminance = 0.299*qRed(*pixel_data) +0.587*qGreen(*pixel_data) + 0.114 * qBlue(*pixel_data);
+            int Cb = 128 + (-0.169)*qRed(*pixel_data) +(-0.331)*qGreen(*pixel_data) + 0.5 * qBlue(*pixel_data);
+            int Cr = 128 + 0.5*qRed(*pixel_data) +(-0.419)*qGreen(*pixel_data) + (-0.081) * qBlue(*pixel_data);
+            *pixel_data = QColor(luminance,Cb,Cr).rgb();
+        }
+    }
+
+    //luminance mean of relevant regions
+    int num_of_relevant_blocks = 0;
+    for(int block_index = 0; block_index < dividend*dividend;block_index++)
+    {
+        if(relevant_blocks[block_index])
+        {
+            num_of_relevant_blocks++;
+            float block_luminance_mean = 0;
+            for(int pixel_row = 0; pixel_row<separated_blocks[block_index].height();pixel_row++)
+            {
+                QRgb *rowData = (QRgb*)separated_blocks[block_index].scanLine(pixel_row);
+                for(int pixel_col = 0; pixel_col<separated_blocks[block_index].width();pixel_col++)
+                {
+                    QRgb pixel_data = rowData[pixel_col];
+                    block_luminance_mean = block_luminance_mean + (0.299*qRed(pixel_data) +0.587*qGreen(pixel_data) + 0.114 * qBlue(pixel_data));
+                }
+            }
+            block_luminance_mean /= (separated_blocks[block_index].height()*separated_blocks[block_index].width());
+            luminance_mean += block_luminance_mean;
+        }
+    }
+    luminance_mean /= num_of_relevant_blocks ;
+
+    //target_luminance = 128;
+    //int delta = inverse_camera_response_curve_LUT[128] - inverse_camera_response_curve_LUT[(int)luminance_mean];
+    int delta = inverseCameraResponse(106) - inverseCameraResponse((int)luminance_mean);
+    for(int pixel_row = 0; pixel_row < img_height; pixel_row++)
+    {
+        QRgb *rowData = (QRgb*)adjusted_image.scanLine(pixel_row);
+        for(int pixel_col = 0; pixel_col < img_width; pixel_col++)
+        {
+            int current_pixel = pixel_row * img_width + img_height;
+            QRgb *pixel_data = &rowData[pixel_col];
+            //int luminance = cameraResponse(qRed(*pixel_data)+delta);
+            int luminance = camera_response_curve_LUT[qRed(*pixel_data)+delta];
+//            int luminance = qRed(*pixel_data);
+            int red = luminance + 1.4*(qBlue(*pixel_data)-128);
+            int green = luminance + (-0.343)*(qGreen(*pixel_data)-128) + (-0.711)*(qBlue(*pixel_data)-128);
+            int blue = luminance + 1.765*(qGreen(*pixel_data)-128);
+            red = red <= 255? red:255;
+            green = green <= 255? green:255;
+            blue = blue <= 255? blue:255;
+
+            red = red >= 0? red:0;
+            green = green >=0? green:0;
+            blue = blue >=0? blue:0;
+
+            *pixel_data = QColor(red,green,blue).rgb();
+        }
+    }
+    for(int block_index = 0; block_index < dividend*dividend;block_index++)
+    {
+        qDebug() <<relevant_blocks[block_index];
+    }
+    return adjusted_image;
+}
+
+
+//TODO:TEST
+unsigned char*FYTImgProcessingLib::visibilityImageConstruction(const unsigned char *yuyv_Image, int image_width, int image_height)
+{
+    int luminance_mean = 0;
+    int image_size = image_width * image_height;
+    unsigned char *visibility_image_array_form = new unsigned char[image_size*2];
+    for(int pixel = 0; pixel < image_size * 2; pixel++)
+    {
+        visibility_image_array_form[pixel] = yuyv_Image[pixel];
+        if(pixel%2==0)
+            luminance_mean += yuyv_Image[pixel];
+    }
+    luminance_mean /= image_size;
+
+    //target_luminance = 128;
+    int delta = inverse_camera_response_curve_LUT[128] - inverse_camera_response_curve_LUT[luminance_mean];
+    //adjust each pixel
+    for(int pixel = 0; pixel < image_size * 2; pixel+=2)
+    {
+        visibility_image_array_form[pixel] = cameraResponse(inverse_camera_response_curve_LUT[visibility_image_array_form[pixel]] + delta);
+    }
+    return visibility_image_array_form;
 }
 
