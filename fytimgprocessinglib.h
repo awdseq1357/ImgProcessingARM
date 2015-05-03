@@ -33,7 +33,7 @@ public:
                    , int image_width
                    , int image_height);
     float blockFocusMeasure(unsigned char* yuv_image, int *kernel);
-    float blockContrastMeasure(unsigned char* yuv_image);
+    float blockContrastMeasure(unsigned char* yuyv_image);
     bool  *relevantRegionSelection(int dividend, bool preprocessing=true);
 
     void readImage(QString file_name);
@@ -41,6 +41,7 @@ public:
     QImage grayWorldWhiteBalance(QImage image);
     QImage whitePitchWhiteBalance(QImage image);
     QImage enhancedWhitePitchWhiteBalance(QImage image);
+    QImage ARMLuminanceAdjust(bool *relevant_blocks, int dividend);
 
     int exposureCompensation(QImage test_image);
     int exposureCompensation(unsigned int camera_image);

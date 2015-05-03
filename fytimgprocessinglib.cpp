@@ -40,50 +40,6 @@ FYTImgProcessingLib::~FYTImgProcessingLib()
     delete []camera_response_curve_LUT;
 }
 
-float FYTImgProcessingLib::blockFocusMeasure(unsigned char *yuyv_image, int *kernel)
-{
-    int image_size = IMG_HEIGHT * IMG_WIDTH;
-    int histogram[256] = {};
-    for(int offset = 0; offset < image_size; offset ++)
-        histogram[yuyv_image[offset<<1]]++;
-
-    float histogram_component_smoothing_sum = 0;
-    float histogram_component_sum = 0;
-    float histogram_component_mean = 0;
-
-    //smoothing the histogram
-    for(int scale = 0; scale < 256; scale++)
-    {
-        if((scale-2) >= 0) histogram_component_smoothing_sum += histogram[scale-2];
-        if((scale-1) >= 0) histogram_component_smoothing_sum += histogram[scale-1];
-        histogram_component_smoothing_sum += histogram[scale];
-        if((scale+1) <= 255) histogram_component_smoothing_sum += histogram[scale+1];
-        if((scale+2) <= 255) histogram_component_smoothing_sum += histogram[scale+2];
-        smooth_histogram[scale] = histogram_component_smoothing_sum / 5;
-        histogram_component_smoothing_sum = 0;
-
-        //mean = sum(0-255) i * histogram(i) / sum(0-255) histogram(i)
-        histogram_component_sum += smooth_histogram[scale];
-        histogram_component_mean += scale * smooth_histogram[scale];
-    }
-
-    histogram_component_mean /= histogram_component_sum;
-
-    float histogram_deviation = 0;
-    for(int scale = 0; scale < 256; scale++)
-    {
-        histogram_deviation += ((scale - histogram_component_mean) * (scale- histogram_component_mean) * histogram[scale]);
-    }
-    histogram_deviation /= histogram_component_sum;
-    //FIXME: return the stand deviation
-    //use LookUpTable for this
-    if(0 <= histogram_deviation)
-        return sqrt(histogram_deviation);
-    else
-        return -1;
-
-}
-
 void FYTImgProcessingLib::convertToYUV(const unsigned char *img_8u2_yuyv,
                                          unsigned char* qimage_yuv888)
 {
@@ -275,6 +231,72 @@ QImage FYTImgProcessingLib::enhancedWhitePitchWhiteBalance(QImage image)
     delete red_square_table;
     delete blue_square_table;
     return image;
+}
+
+QImage FYTImgProcessingLib::ARMLuminanceAdjust(bool *relevant_blocks, int dividend)
+{
+    int img_height = input_image.height();
+    int img_width = input_image.width();
+    int img_size = img_height*img_width;
+    float luminance_mean = 0;
+    QImage adjusted_image = input_image;
+
+    //luminance mean of relevant regions
+    int num_of_relevant_blocks = 0;
+    for(int block_index = 0; block_index < dividend*dividend;block_index++)
+    {
+        if(relevant_blocks[block_index])
+        {
+            num_of_relevant_blocks++;
+            float block_luminance_mean = 0;
+            for(int pixel_row = 0; pixel_row<separated_blocks[block_index].height();pixel_row++)
+            {
+                QRgb *rowData = (QRgb*)separated_blocks[block_index].scanLine(pixel_row);
+                for(int pixel_col = 0; pixel_col<separated_blocks[block_index].width();pixel_col++)
+                {
+                    QRgb pixel_data = rowData[pixel_col];
+                    block_luminance_mean = block_luminance_mean + qRed(pixel_data);
+                }
+            }
+            block_luminance_mean /= (separated_blocks[block_index].height()*separated_blocks[block_index].width());
+            luminance_mean += block_luminance_mean;
+        }
+    }
+    luminance_mean /= num_of_relevant_blocks ;
+
+    //target_luminance = 128;
+    //int delta = inverse_camera_response_curve_LUT[128] - inverse_camera_response_curve_LUT[(int)luminance_mean];
+    int delta = inverseCameraResponse(106) - inverseCameraResponse((int)luminance_mean);
+    for(int pixel_row = 0; pixel_row < img_height; pixel_row++)
+    {
+        QRgb *rowData = (QRgb*)adjusted_image.scanLine(pixel_row);
+        for(int pixel_col = 0; pixel_col < img_width; pixel_col++)
+        {
+            int current_pixel = pixel_row * img_width + img_height;
+            QRgb *pixel_data = &rowData[pixel_col];
+            //int luminance = cameraResponse(qRed(*pixel_data)+delta);
+            int luminance = camera_response_curve_LUT[qRed(*pixel_data)+delta];
+//            int luminance = qRed(*pixel_data);
+            //TODO: LUT
+            int red = luminance + 1.4*(qBlue(*pixel_data)-128);
+            int green = luminance + (-0.343)*(qGreen(*pixel_data)-128) + (-0.711)*(qBlue(*pixel_data)-128);
+            int blue = luminance + 1.765*(qGreen(*pixel_data)-128);
+            red = red <= 255? red:255;
+            green = green <= 255? green:255;
+            blue = blue <= 255? blue:255;
+
+            red = red >= 0? red:0;
+            green = green >=0? green:0;
+            blue = blue >=0? blue:0;
+
+            *pixel_data = QColor(red,green,blue).rgb();
+        }
+    }
+//    for(int block_index = 0; block_index < dividend*dividend;block_index++)
+//    {
+//        qDebug() <<relevant_blocks[block_index];
+//    }
+    return adjusted_image;
 }
 
 int FYTImgProcessingLib::exposureCompensation(QImage test_image)
@@ -729,7 +751,6 @@ unsigned int *FYTImgProcessingLib::grayscaleToHistogram(unsigned int *grayscale_
     //TODO:
 bool *FYTImgProcessingLib::relevantRegionSelection(int dividend, bool preprocessing)
 {
-
     int horizontal_step = input_image.width() / dividend;
     int vertical_step = input_image.height() / dividend;
     int num_of_blocks = dividend * dividend;
@@ -840,27 +861,4 @@ QImage FYTImgProcessingLib::luminanceAdjust(bool *relevant_blocks, int dividend)
 }
 
 
-//TODO:TEST
-unsigned char*FYTImgProcessingLib::visibilityImageConstruction(const unsigned char *yuyv_Image, int image_width, int image_height)
-{
-    int luminance_mean = 0;
-    int image_size = image_width * image_height;
-    unsigned char *visibility_image_array_form = new unsigned char[image_size*2];
-    for(int pixel = 0; pixel < image_size * 2; pixel++)
-    {
-        visibility_image_array_form[pixel] = yuyv_Image[pixel];
-        if(pixel%2==0)
-            luminance_mean += yuyv_Image[pixel];
-    }
-    luminance_mean /= image_size;
-
-    //target_luminance = 128;
-    int delta = inverse_camera_response_curve_LUT[128] - inverse_camera_response_curve_LUT[luminance_mean];
-    //adjust each pixel
-    for(int pixel = 0; pixel < image_size * 2; pixel+=2)
-    {
-        visibility_image_array_form[pixel] = cameraResponse(inverse_camera_response_curve_LUT[visibility_image_array_form[pixel]] + delta);
-    }
-    return visibility_image_array_form;
-}
 
