@@ -87,11 +87,14 @@ public:
     void testHistogram(QString file_name);
 
 QImage *separated_blocks;
-private:
-    int image;
-    QImage input_image;
+QImage getInput_image() const;
+void setInput_image(const QImage &value);
 
-    QImage visibility_image;
+private:
+int image;
+QImage input_image;
+
+QImage visibility_image;
 
     int *inverse_camera_response_curve_LUT;
     int *camera_response_curve_LUT;

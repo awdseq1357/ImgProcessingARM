@@ -49,6 +49,8 @@ void Dialog::on_pushButton_read_image_clicked()
     //processor.relevantRegionSelection(8,false);
     QImage *blocks = processor->separated_blocks;
     image_ = processor->luminanceAdjust(processor->relevantRegionSelection(8),8);
+//    processor->setInput_image(image_);
+//    image_ = processor->luminanceAdjust(processor->relevantRegionSelection(8,false),8);
     //image_ = blocks[0];
     //image_ = processor->enhancedWhitePitchWhiteBalance(image_);
     image_ = image_.scaledToWidth(640);
