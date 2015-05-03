@@ -40,7 +40,7 @@ void Dialog::on_pushButton_read_image_clicked()
 
 
     int IMAGE_WIDTH = 640, IMAGE_HEIGHT = 480;
-;   processor->readImage("UE_2.jpg");
+;   processor->readImage("UE_3.jpg");
     //QImage m_image = QImage(IMAGE_WIDTH, IMAGE_HEIGHT, QImage::Format_RGB888);
     //qDebug() << image_.format() << image_.colorCount();
     //processor.sobelFilter(processor.rgbToGrayscale(image_),m_img_8u1_mag,IMAGE_WIDTH,IMAGE_HEIGHT);

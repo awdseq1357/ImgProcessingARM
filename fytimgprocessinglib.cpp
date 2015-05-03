@@ -722,7 +722,7 @@ QImage FYTImgProcessingLib::luminanceAdjust(bool *relevant_blocks, int dividend)
 
     //target_luminance = 128;
     //int delta = inverse_camera_response_curve_LUT[128] - inverse_camera_response_curve_LUT[(int)luminance_mean];
-    int delta = inverseCameraResponse(106) - inverseCameraResponse((int)luminance_mean);
+    int delta = inverseCameraResponse(40) - inverseCameraResponse((int)luminance_mean);
     for(int pixel_row = 0; pixel_row < img_height; pixel_row++)
     {
         QRgb *rowData = (QRgb*)adjusted_image.scanLine(pixel_row);
