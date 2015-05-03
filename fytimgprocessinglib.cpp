@@ -40,6 +40,75 @@ FYTImgProcessingLib::~FYTImgProcessingLib()
     delete []camera_response_curve_LUT;
 }
 
+float FYTImgProcessingLib::blockFocusMeasure(unsigned char *yuyv_image, int *kernel)
+{
+    int image_size = IMG_HEIGHT * IMG_WIDTH;
+    int histogram[256] = {};
+    for(int offset = 0; offset < image_size; offset ++)
+        histogram[yuyv_image[offset<<1]]++;
+
+    float histogram_component_smoothing_sum = 0;
+    float histogram_component_sum = 0;
+    float histogram_component_mean = 0;
+
+    //smoothing the histogram
+    for(int scale = 0; scale < 256; scale++)
+    {
+        if((scale-2) >= 0) histogram_component_smoothing_sum += histogram[scale-2];
+        if((scale-1) >= 0) histogram_component_smoothing_sum += histogram[scale-1];
+        histogram_component_smoothing_sum += histogram[scale];
+        if((scale+1) <= 255) histogram_component_smoothing_sum += histogram[scale+1];
+        if((scale+2) <= 255) histogram_component_smoothing_sum += histogram[scale+2];
+        smooth_histogram[scale] = histogram_component_smoothing_sum / 5;
+        histogram_component_smoothing_sum = 0;
+
+        //mean = sum(0-255) i * histogram(i) / sum(0-255) histogram(i)
+        histogram_component_sum += smooth_histogram[scale];
+        histogram_component_mean += scale * smooth_histogram[scale];
+    }
+
+    histogram_component_mean /= histogram_component_sum;
+
+    float histogram_deviation = 0;
+    for(int scale = 0; scale < 256; scale++)
+    {
+        histogram_deviation += ((scale - histogram_component_mean) * (scale- histogram_component_mean) * histogram[scale]);
+    }
+    histogram_deviation /= histogram_component_sum;
+    //FIXME: return the stand deviation
+    //use LookUpTable for this
+    if(0 <= histogram_deviation)
+        return sqrt(histogram_deviation);
+    else
+        return -1;
+
+}
+
+void FYTImgProcessingLib::convertToYUV(const unsigned char *img_8u2_yuyv,
+                                         unsigned char* qimage_yuv888)
+{
+    int image_size = IMG_HEIGHT * IMG_WIDTH;
+    int offset_rgb =0;
+    //将图像中的每一个YUYV值转化为2对YUV值
+    for(int offset_yuv = 0; offset_yuv < image_size*2; offset_yuv += 4)
+    {
+        //得到YUYV值
+        y0 = img_8u2_yuyv[offset_yuv];
+        u  = img_8u2_yuyv[offset_yuv + 1];		//128为色度的0位置
+        y1 = img_8u2_yuyv[offset_yuv + 2];
+        v  = img_8u2_yuyv[offset_yuv + 3];		//128为饱和度的0位置
+
+        qimage_yuv888[offset_rgb++] = img_8u2_yuyv[offset_yuv];
+        qimage_yuv888[offset_rgb++] = img_8u2_yuyv[offset_yuv + 1];
+        qimage_yuv888[offset_rgb++] = img_8u2_yuyv[offset_yuv + 3];
+
+        qimage_yuv888[offset_rgb++] = img_8u2_yuyv[offset_yuv + 2];
+        qimage_yuv888[offset_rgb++] = img_8u2_yuyv[offset_yuv + 1];
+        qimage_yuv888[offset_rgb++] = img_8u2_yuyv[offset_yuv + 3];
+    }
+
+}
+
 void FYTImgProcessingLib::readImage(QString file_name)
 {
     QImageReader reader;
@@ -289,13 +358,10 @@ float FYTImgProcessingLib::blockContrastMeasure(
 {
     unsigned int *histogram = grayscaleToHistogram(rgbToGrayscale(image));
     unsigned int *smooth_histogram = new unsigned int[256](); //FIXME:dynamic object
-//    for(int i=0; i<255; i++)
-//        qDebug()<< histogram[i];
 
     float histogram_component_smoothing_sum = 0;
     float histogram_component_sum = 0;
     float histogram_component_mean = 0;
-
 
     //smoothing the histogram
     for(int scale = 0; scale < 256; scale++)
@@ -321,8 +387,6 @@ float FYTImgProcessingLib::blockContrastMeasure(
         histogram_deviation += ((scale - histogram_component_mean) * (scale- histogram_component_mean) * histogram[scale]);
     }
     histogram_deviation /= histogram_component_sum;
-    //FIXME: return the stand deviation
-    //use LookUpTable for this
     if(0 <= histogram_deviation)
         return sqrt(histogram_deviation);
     else

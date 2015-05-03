@@ -18,10 +18,10 @@
 #include "./qsLib/avilib.h"
 
 //图像宽度和高度(2592, 1944), (1600, 1200), (640, 480)
-#define IMAGE_WIDTH						1600	
-#define IMAGE_HEIGHT					1200
+#define IMAGE_WIDTH						640
+#define IMAGE_HEIGHT					480
 
-//图像采集方式
+//image stream format
 #define PIXEL_FORMAT					V4L2_PIX_FMT_YUYV
 //#define PIXEL_FORMAT					V4L2_PIX_FMT_MJPEG
 
@@ -29,18 +29,18 @@
 extern "C" {
 #endif
 
-//图像缓冲区结构体
+
 typedef	struct
 {
-	void				*start;					//起始地址
-	size_t				length;					//缓冲区大小
+    void				*start;					//the starting address
+    size_t				length;					//size of the buffer
 }image_buffer;
 
 //符合V4L2协议的摄像机对象的结构体
 typedef	struct
 {
 	//用户交互变量
-	char*				dev_name;				//设备名称/dev/vidio*
+    char*				dev_name;				//device name /dev/vidio*
 	int					snap_mode;				//是否抓拍当前帧图像，1抓拍，其他值不抓拍
 	int					avi_record_mode;		//是否录像，1录像，其他值不录像
 	
@@ -64,19 +64,17 @@ typedef	struct
 int init_dev (V4L2_data *camera);
 
 /////////////////////////////////////////////////////////////////////////////////////////
-//停止摄像头设备
-//Author: EmbedVision
-/////////////////////////////////////////////////////////////////////////////////////////
+//stop the camera
 void stop_dev (V4L2_data *camera);
 
-/////////////////////////////////////////////////////////////////////////////////////////
-//读取帧图像
-//读取成功返回1，读取失败返回0
-//Author: EmbedVision
-/////////////////////////////////////////////////////////////////////////////////////////
-int read_frame(V4L2_data *camera, 
-				unsigned char *img_8u3_rgb888, 				/*输出的RGB888数据*/
-				unsigned char *img_8u1_gray = NULL);		/*输出的灰度图像数据*/
+//read a frame of image
+//0==failure; 1==sucessful
+//return YUYV image stream
+//int read_frame(V4L2_data *camera,
+//				unsigned char *img_8u3_rgb888,
+//				unsigned char *img_8u1_gray = NULL);
+int read_frame(V4L2_data *camera,
+                unsigned char *img_8u2_yuyv);
 
 
 #ifdef __cplusplus

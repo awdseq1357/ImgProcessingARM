@@ -27,15 +27,15 @@ public:
     FYTImgProcessingLib();
     ~FYTImgProcessingLib();
     //embedded platform version
-    QImage convertToYUV(const unsigned char* img_8u2_yuyv);
+    QImage convertToYUV(const unsigned char* img_8u2_yuyv, unsigned char *qimage_yuv888);
     void saveImage(const unsigned char* img_8u3_rgb888
                    , QString fileName
                    , int image_width
                    , int image_height);
-    float blockFocusMeasure(unsigned char* yuv_image, int *kernel);
+    float blockFocusMeasure(unsigned char* yuyv_image, int *kernel);
     float blockContrastMeasure(unsigned char* yuv_image);
     bool  *relevantRegionSelection(int dividend, bool preprocessing=true);
-
+ 
     void readImage(QString file_name);
 
     QImage grayWorldWhiteBalance(QImage image);

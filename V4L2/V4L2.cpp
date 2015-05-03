@@ -6,7 +6,7 @@
 #include "V4L2.h"
 
 #define RECORD_SINGLE_FILE_FRAMES 			2000
-#define MAX_FAILURE_COUNT					20
+#define MAX_FAILURE_COUNT					50
 
 /////////////////////////////////////////////////////////////////////////////////////////
 //打开摄像头设备文件
@@ -243,9 +243,8 @@ void restart_dev (V4L2_data *camera)
 //读取成功返回1，读取失败返回0
 //Author: EmbedVision
 /////////////////////////////////////////////////////////////////////////////////////////
-int read_frame(V4L2_data *camera, 
-				unsigned char *img_8u3_rgb888, 				/*输出的RGB888数据*/
-				unsigned char *img_8u1_gray)				/*输出的灰度图像数据*/
+int read_frame(V4L2_data *camera,
+                unsigned char *img_8u2_yuyv)				/*输出的灰度图像数据*/
 {
 	//当前拍摄的视频数据的缓冲区
 	v4l2_buffer			current_buf;			
@@ -256,172 +255,49 @@ int read_frame(V4L2_data *camera,
 	
 	//缓冲区地址
 	unsigned char *img_buffer = (unsigned char *)(camera->buffers[current_buf.index].start);
-	
-	//若采集的图像是YUYV格式
-	if(V4L2_PIX_FMT_YUYV == PIXEL_FORMAT)
-	{
-		if(current_buf.bytesused != IMAGE_WIDTH*IMAGE_HEIGHT*2)
-		{
-			//释放当前读取图像的缓存
-			printf("yuyv size Error! \n");
-			camera->failure_count++;
-			ioctl(camera->fd, VIDIOC_QBUF, &current_buf);
-			
-			//若多次出现yuyv size Error，说明摄像头出现了故障，重启摄像头
-			if(camera->failure_count > MAX_FAILURE_COUNT)
-			{
-				printf("yuyv capturing error, restart! \n");
-				restart_dev(camera);
-			}
-			return 0;
-		}
-		camera->failure_count = 0;
-	
-		//图像格式转换，YUV----RGB
-		if(NULL != img_8u3_rgb888)
-		{
-			qsYuv2Rgb(
-				img_buffer, 
-				img_8u3_rgb888, 
-				IMAGE_WIDTH, 
-				IMAGE_HEIGHT);
-		}
-	
-		//图像格式转换，YUV----GRAY
-		if(NULL != img_8u1_gray)
-		{
-			qsYuv2Gray(
-				img_buffer, 
-				img_8u1_gray, 
-				IMAGE_WIDTH, 
-				IMAGE_HEIGHT);
-		}
-		
-		//保存当前帧图像
-		if(1 == camera->snap_mode)
-		{
-			char file_name[1024];
-			
-			if(NULL != img_8u3_rgb888)
-			{
-				sprintf(file_name, "%d_rgb.bmp", camera->frame_index);
-				qsBmpRgbSave(img_8u3_rgb888, IMAGE_WIDTH, IMAGE_HEIGHT, file_name, 1);
-			}
-			
-			if(NULL != img_8u1_gray)
-			{
-				sprintf(file_name, "%d_gray.bmp", camera->frame_index);
-				qsBmpGraySave(img_8u1_gray, IMAGE_WIDTH, IMAGE_HEIGHT, file_name, 1);
-			}
-			
-			camera->snap_mode = 0;
-		}
-	}
-	
-	//若采集的图像是MJPEG格式
-	if(V4L2_PIX_FMT_MJPEG == PIXEL_FORMAT)
-	{
-		//保存当前帧图像
-		if(1 == camera->snap_mode)
-		{
-			char file_name[1024];
-			sprintf(file_name, "%d.jpg", camera->frame_index);
-			qsJpegSave(img_buffer, current_buf.bytesused, file_name);
-			camera->snap_mode = 0;
-		}
-		
-		//avi录像
-		if(1 == camera->avi_record_mode)
-		{
-			if(NULL == camera->avifile)
-			{
-				//得到可用的文件名
-				char file_name[1024];
-				for(int i=1; i<10000; i++)
-				{
-					sprintf(file_name, "/udisk/qs%.4d.avi", i);
-					FILE *fp;
-					fp = fopen(file_name,"rb");
-					if(NULL == fp)
-						break;
-					fclose(fp);
-				}
-				
-				camera->avifile = AVI_open_output_file(file_name);
-				if(NULL != camera->avifile)
-					AVI_set_video(camera->avifile, IMAGE_WIDTH, IMAGE_HEIGHT, 15, (char*)("MJPG"));
-			}
-			else
-			{
-				AVI_write_frame(camera->avifile, (char*)img_buffer, current_buf.bytesused, camera->frame_index % RECORD_SINGLE_FILE_FRAMES);
-			}
-			
-			//录像RECORD_SINGLE_FILE_FRAMES帧后更换文件
-			if(RECORD_SINGLE_FILE_FRAMES-1 == camera->frame_index % RECORD_SINGLE_FILE_FRAMES)
-			{
-				AVI_close(camera->avifile);
-				camera->avifile = NULL;
-			}
-		}
-		
-		//解压缩
-		int img_width = 0, img_height = 0;
-		qsJpegDecode(&camera->framebuffer, img_buffer, &img_width, &img_height);
-		if(IMAGE_WIDTH != img_width || IMAGE_HEIGHT != img_height)
-		{
-			//释放当前读取图像的缓存
-			printf("qsJpegDecode Error! \n");
-			camera->failure_count++;
-			ioctl(camera->fd, VIDIOC_QBUF, &current_buf);
-			
-			//若多次出现qsJpegDecode Error，说明摄像头出现了故障，重启摄像头
-			if(camera->failure_count > MAX_FAILURE_COUNT)
-			{
-				printf("Jpeg capturing Error, restart! \n");
-				restart_dev(camera);
-			}
-			return 0;
-		}
-		
-		//图像格式转换，YUV----RGB
-		if(NULL != img_8u3_rgb888)
-		{
-			qsYuv2Rgb(
-				camera->framebuffer, 
-				img_8u3_rgb888, 
-				IMAGE_WIDTH, 
-				IMAGE_HEIGHT);
-		}
-		
-		//图像格式转换，YUV----GRAY
-		if(NULL != img_8u1_gray)
-		{
-			qsYuv2Gray(
-				camera->framebuffer, 
-				img_8u1_gray, 
-				IMAGE_WIDTH, 
-				IMAGE_HEIGHT);
-		}
-		
-		//判定相机是否出现了故障
-		if( IsBreakdown(camera->framebuffer, camera->prvious_buffer_yuyv, IMAGE_WIDTH, IMAGE_HEIGHT) )
-		{
-			camera->failure_count++;
-			if(camera->failure_count > MAX_FAILURE_COUNT)
-			{
-				//释放当前读取图像的缓存
-				printf("image died, restart! \n");
-				ioctl(camera->fd, VIDIOC_QBUF, &current_buf);
-				
-				restart_dev(camera);
-				return 0;
-			}
-		}
-		memcpy(camera->prvious_buffer_yuyv, camera->framebuffer, IMAGE_WIDTH*IMAGE_HEIGHT*2);
-		
-		camera->failure_count = 0;
-	}
-	
+    int image_size = IMAGE_WIDTH*IMAGE_HEIGHT*2;
+    //若采集的图像是YUYV格式
+    if(current_buf.bytesused != image_size)
+    {
+        //释放当前读取图像的缓存
+        printf("yuyv size Error! \n");
+        camera->failure_count++;
+        ioctl(camera->fd, VIDIOC_QBUF, &current_buf);
+
+        //若多次出现yuyv size Error，说明摄像头出现了故障，重启摄像头
+        if(camera->failure_count > MAX_FAILURE_COUNT)
+        {
+            printf("yuyv capturing error, restart! \n");
+            restart_dev(camera);
+        }
+        return 0;
+    }
+    camera->failure_count = 0;
+
+
+    for(int offset = 0; offset < image_size; offset ++)
+        img_8u2_yuyv[offset] = img_buffer[offset];
+
+//    //保存当前帧图像
+//    if(1 == camera->snap_mode)
+//    {
+//        char file_name[1024];
+
+//        if(NULL != img_8u3_yuv)
+//        {
+//            sprintf(file_name, "%d_rgb.bmp", camera->frame_index);
+//            qsBmpRgbSave(img_8u3_yuv, IMAGE_WIDTH, IMAGE_HEIGHT, file_name, 1);
+//        }
+
+//        if(NULL != img_8u1_gray)
+//        {
+//            sprintf(file_name, "%d_gray.bmp", camera->frame_index);
+//            qsBmpGraySave(img_8u1_gray, IMAGE_WIDTH, IMAGE_HEIGHT, file_name, 1);
+//        }
+
+//        camera->snap_mode = 0;
+//    }
+
 	//释放当前读取图像的缓存
 	ioctl(camera->fd, VIDIOC_QBUF, &current_buf);
 	
