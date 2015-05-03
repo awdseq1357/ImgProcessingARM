@@ -24,7 +24,7 @@ FYTImgProcessingLib::FYTImgProcessingLib()
 
     //initialize the
     camera_response_curve_LUT = new int[256];
-    for(int i = 0; i<255;i++)
+    for(int i = 0; i<256;i++)
     {
         camera_response_curve_LUT[i] = 255*pow((float)i/255,0.45);
     }
@@ -600,6 +600,16 @@ void FYTImgProcessingLib::testHistogram(QString file_name)
     for(int i = 0; i< 256; i++)
         qDebug() << file_name + " histogram"<< "scale " + QString::number(i) <<histogram[i];
 }
+QImage FYTImgProcessingLib::getInput_image() const
+{
+    return input_image;
+}
+
+void FYTImgProcessingLib::setInput_image(const QImage &value)
+{
+    input_image = value;
+}
+
 
 
 
@@ -722,7 +732,7 @@ QImage FYTImgProcessingLib::luminanceAdjust(bool *relevant_blocks, int dividend)
 
     //target_luminance = 128;
     //int delta = inverse_camera_response_curve_LUT[128] - inverse_camera_response_curve_LUT[(int)luminance_mean];
-    int delta = inverseCameraResponse(40) - inverseCameraResponse((int)luminance_mean);
+    int delta = inverseCameraResponse(90) - inverseCameraResponse((int)luminance_mean);
     for(int pixel_row = 0; pixel_row < img_height; pixel_row++)
     {
         QRgb *rowData = (QRgb*)adjusted_image.scanLine(pixel_row);
@@ -731,7 +741,14 @@ QImage FYTImgProcessingLib::luminanceAdjust(bool *relevant_blocks, int dividend)
             int current_pixel = pixel_row * img_width + img_height;
             QRgb *pixel_data = &rowData[pixel_col];
             //int luminance = cameraResponse(qRed(*pixel_data)+delta);
-            int luminance = camera_response_curve_LUT[qRed(*pixel_data)+delta];
+            int target_light_intensity = qRed(*pixel_data)+delta;
+            if(qRed(*pixel_data)==255) qDebug() << QString::number(pixel_row) + " " + QString::number(pixel_col) << QString::number(target_light_intensity);
+            target_light_intensity = target_light_intensity <= 255? target_light_intensity:255;
+            target_light_intensity = target_light_intensity >= 0? target_light_intensity:0;
+            int luminance = camera_response_curve_LUT[target_light_intensity];
+            if(qRed(*pixel_data)==255) qDebug() << QString::number(pixel_row) + " " + QString::number(pixel_col)
+                                                << QString::number(target_light_intensity)
+                                                << QString::number(luminance);
 //            int luminance = qRed(*pixel_data);
             int red = luminance + 1.4*(qBlue(*pixel_data)-128);
             int green = luminance + (-0.343)*(qGreen(*pixel_data)-128) + (-0.711)*(qBlue(*pixel_data)-128);
