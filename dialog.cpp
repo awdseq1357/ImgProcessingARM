@@ -51,6 +51,8 @@ void Dialog::on_pushButton_read_image_clicked()
     image_ = processor->luminanceAdjust(processor->relevantRegionSelection(8),8);
     //image_ = blocks[0];
     //image_ = processor->enhancedWhitePitchWhiteBalance(image_);
+    processor->setInput_image(image_);
+    image_ = processor->skinDetection();
     image_ = image_.scaledToWidth(640);
     pixmap_ = QPixmap::fromImage(image_);
 

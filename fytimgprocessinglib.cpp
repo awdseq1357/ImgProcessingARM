@@ -28,11 +28,14 @@ FYTImgProcessingLib::FYTImgProcessingLib()
     {
         camera_response_curve_LUT[i] = 255*pow((float)i/255,0.45);
     }
+
+    face_significant = false;
 }
 
 FYTImgProcessingLib::~FYTImgProcessingLib()
 {
     //delete table_sobel_sqrt;
+    //FIXME!
     delete []inverse_camera_response_curve_LUT;
     delete []camera_response_curve_LUT;
 }
@@ -210,10 +213,11 @@ int FYTImgProcessingLib::exposureCompensation(QImage test_image)
     return 0;
 }
 
-QImage FYTImgProcessingLib::skinDetection(QImage image)
+QImage FYTImgProcessingLib::skinDetection()
 {
     //based on the color segmentation
     float skin_percentage = 0;
+    QImage image = input_image;
     for(int pixel_row = 0; pixel_row < image.height();pixel_row++)
     {
         QRgb *row_data = (QRgb*)image.scanLine(pixel_row);
@@ -243,14 +247,20 @@ QImage FYTImgProcessingLib::skinDetection(QImage image)
             else *pixel_data = qRgb(255,255,255);
         }
     }
+    float kFacePercentage = 0.3;
     skin_percentage = skin_percentage/(input_image.height()*input_image.width());
+    if(skin_percentage>kFacePercentage)
+    {
+        face_significant = true;
+        qDebug() <<"face!";
+    }
     return image;
 }
 //TODO
 QImage FYTImgProcessingLib::faceRecognition(QImage image)
 {
     int num_face_candidate = 0;
-    QImage segmented_image = skinDetection(image);
+    QImage segmented_image = skinDetection();
     ImageLocation *component_candidate = new ImageLocation;
     int *face_map = new int[image.width() * image.height()]();
     for(int pixel_row = 0; pixel_row < image.height();pixel_row++)
@@ -600,6 +610,17 @@ void FYTImgProcessingLib::testHistogram(QString file_name)
     for(int i = 0; i< 256; i++)
         qDebug() << file_name + " histogram"<< "scale " + QString::number(i) <<histogram[i];
 }
+
+QImage FYTImgProcessingLib::getInput_image() const
+{
+    return input_image;
+}
+
+void FYTImgProcessingLib::setInput_image(const QImage &value)
+{
+    input_image = value;
+}
+
 
 
 

@@ -39,7 +39,7 @@ public:
     int exposureCompensation(unsigned int camera_image);
 
     //TODO: skin detection
-    QImage skinDetection(QImage image);
+    QImage skinDetection();
     //TODO: face recognition
     QImage faceRecognition(QImage image);
     //return -1 == error
@@ -86,7 +86,10 @@ public:
     void testImageContrastFocus(QDir current_dir);
     void testHistogram(QString file_name);
 
-QImage *separated_blocks;
+    QImage *separated_blocks;
+    QImage getInput_image() const;
+    void setInput_image(const QImage &value);
+
 private:
     int image;
     QImage input_image;
@@ -96,7 +99,7 @@ private:
     int *inverse_camera_response_curve_LUT;
     int *camera_response_curve_LUT;
     unsigned char table_sobel_sqrt[136900];
-
+    bool face_significant;
 
 };
 

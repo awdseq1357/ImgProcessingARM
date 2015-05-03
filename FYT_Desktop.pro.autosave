@@ -10,7 +10,8 @@ greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
 TARGET = FYT_Desktop
 TEMPLATE = app
-
+DEPENDPATH += . qsLib
+INCLUDEPATH += . qsLib
 
 SOURCES += main.cpp\
         dialog.cpp \
